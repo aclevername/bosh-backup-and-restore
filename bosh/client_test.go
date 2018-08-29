@@ -201,15 +201,22 @@ var _ = Describe("Director", func() {
 		Context("finds instances for the deployment, having multiple instances in an instance group", func() {
 			var instance0Jobs, instance1Jobs orchestrator.Jobs
 			BeforeEach(func() {
+				var zero, one *int
+				zero = new(int)
+				one = new(int)
+				*zero = 0
+				*one = 1
 				boshDirector.FindDeploymentReturns(boshDeployment, nil)
 				boshDeployment.VMInfosReturns([]director.VMInfo{
 					{
 						JobName: "job1",
 						ID:      "id1",
+						Index:   one,
 					},
 					{
 						JobName: "job1",
 						ID:      "id2",
+						Index:   zero,
 					},
 				}, nil)
 				optsGenerator.Returns(stubbedSshOpts, "private_key", nil)
@@ -253,10 +260,13 @@ var _ = Describe("Director", func() {
 			})
 
 			It("collects the instances", func() {
+				//Expect(actualInstances[0].Index()).To(Equal("1"))
+				//Expect(actualInstances[0].ID()).To(Equal("id1"))
+
 				Expect(actualInstances).To(Equal([]orchestrator.Instance{
 					bosh.NewBoshDeployedInstance(
 						"job1",
-						"0",
+						"1",
 						"id1",
 						remoteRunner,
 						boshDeployment,
@@ -266,7 +276,7 @@ var _ = Describe("Director", func() {
 					),
 					bosh.NewBoshDeployedInstance(
 						"job1",
-						"1",
+						"0",
 						"id2",
 						remoteRunner,
 						boshDeployment,

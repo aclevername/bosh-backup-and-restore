@@ -86,6 +86,7 @@ func (c Client) FindInstances(deploymentName string) ([]orchestrator.Instance, e
 		c.Logger.Debug("bbr", "Setting up SSH for job %s", instanceGroupName)
 
 		allVmInstances, err := director.NewAllOrInstanceGroupOrInstanceSlugFromString(instanceGroupName)
+		allVmInstances.InstanceSlug()
 		if err != nil {
 			cleanupAlreadyMadeConnections(deployment, slugs, sshOpts)
 			return nil, errors.Wrap(err, "invalid instance group name: "+instanceGroupName)
@@ -98,9 +99,8 @@ func (c Client) FindInstances(deploymentName string) ([]orchestrator.Instance, e
 		}
 		slugs = append(slugs, allVmInstances)
 
-		for index, host := range sshRes.Hosts {
+		for _, host := range sshRes.Hosts {
 			var err error
-
 			c.Logger.Debug("bbr", "Attempting to SSH onto %s, %s", host.Host, host.IndexOrID)
 
 			hostPublicKey, _, _, _, err := gossh.ParseAuthorizedKey([]byte(host.HostPublicKey))
@@ -133,10 +133,12 @@ func (c Client) FindInstances(deploymentName string) ([]orchestrator.Instance, e
 				return nil, errors.Wrap(err, "couldn't find jobs")
 			}
 
+			vmIndex := findInstanceIndexById(vms, host.IndexOrID)
+
 			instances = append(instances,
 				NewBoshDeployedInstance(
 					instanceGroupName,
-					strconv.Itoa(index),
+					vmIndex,
 					host.IndexOrID,
 					remoteRunner,
 					deployment,
@@ -154,6 +156,17 @@ func (c Client) FindInstances(deploymentName string) ([]orchestrator.Instance, e
 	}
 
 	return instances, nil
+}
+func findInstanceIndexById(vmInfos []director.VMInfo, vmID string) string {
+	for _, vmInfo := range vmInfos {
+		if vmID == vmInfo.ID {
+			if vmInfo.Index == nil {
+				return ""
+			}
+			return strconv.Itoa(*vmInfo.Index)
+		}
+	}
+	return ""
 }
 
 func (c Client) GetManifest(deploymentName string) (string, error) {
